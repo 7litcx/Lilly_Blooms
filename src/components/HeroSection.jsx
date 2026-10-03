@@ -84,12 +84,12 @@ export default function HeroSection({ slides = [], onShopBouquets, onExploreGift
   };
 
   return (
-    <section id="home" className="w-full pt-3 pb-4 sm:py-5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="home" className="w-full pt-2 pb-4 sm:py-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         
         {/* Slider Card Container */}
         <div
-          className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-[#F0E0E4]/70 bg-[#FBF6F7] group select-none transition-shadow hover:shadow-md h-[180px] xs:h-[220px] sm:h-[320px] md:h-[400px] lg:h-[450px]"
+          className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-[#F0E0E4]/70 bg-[#FBF6F7] group select-none transition-shadow hover:shadow-md h-[150px] xs:h-[185px] sm:h-[250px] md:h-[310px] lg:h-[350px]"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onTouchStart={handleTouchStart}
