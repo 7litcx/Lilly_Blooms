@@ -46,8 +46,11 @@ export default function BestSellers({
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto overflow-hidden">
-          {/* Quick filter pills - Visible & horizontally scrollable on mobile */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
+          {/* Quick filter pills - Visible & horizontally touch-scrollable without scrollbar */}
+          <div
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none no-scrollbar touch-pan-x w-full sm:w-auto"
+          >
             {['الكل', 'باقات', 'رومانسية', 'أعياد الميلاد', 'هدايا تخرج'].map((cat) => (
               <button
                 key={cat}

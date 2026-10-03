@@ -17,6 +17,7 @@
 /* Custom scrollbar matching soft blush aesthetics */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #FCF9F9;
@@ -27,6 +28,20 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #C97A8B;
+}
+
+/* Hide scrollbar completely while keeping native touch/swipe scrolling */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+  -webkit-overflow-scrolling: touch !important; /* Smooth touch momentum scrolling on iOS/Android */
 }
 
 /* Print and PDF styles for Invoices */
