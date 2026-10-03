@@ -1554,7 +1554,7 @@ export default function AdminDashboard({
                     <option value="باقات">باقات الورد</option>
                     <option value="أعياد الميلاد">أعياد الميلاد</option>
                     <option value="رومانسية">رومانسية</option>
-                    <option value="هدايا فاخرة">هدايا فاخرة</option>
+                    <option value="هدايا تخرج">هدايا تخرج</option>
                   </select>
                 </div>
 

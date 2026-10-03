@@ -37,7 +37,7 @@ export default function BestSellers({
         <div className="mt-3 sm:mt-0 flex items-center gap-6">
           {/* Quick filter pills */}
           <div className="hidden md:flex items-center gap-2">
-            {['الكل', 'باقات', 'رومانسية', 'أعياد الميلاد'].map((cat) => (
+            {['الكل', 'باقات', 'رومانسية', 'أعياد الميلاد', 'هدايا تخرج'].map((cat) => (
               <button
                 key={cat}
                 type="button"

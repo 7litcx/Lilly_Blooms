@@ -90,7 +90,7 @@ export const CATEGORIES = [
     id: 'birthday',
     title: 'أعياد الميلاد',
     subtitle: 'احتفل بأجمل اللحظات والذكريات',
-    image: '/images/cat-birthday.jpg',
+    image: '/images/cat-birthday.png',
     tag: 'باقات الميلاد'
   },
   {
@@ -102,9 +102,9 @@ export const CATEGORIES = [
   },
   {
     id: 'gifts',
-    title: 'هدايا فاخرة',
-    subtitle: 'تنسيقات وهدايا مدروسة تسعد أحبابك',
-    image: '/images/cat-gifts.jpg',
-    tag: 'مجموعات الهدايا'
+    title: 'هدايا تخرج',
+    subtitle: 'تنسيقات تخرج مميزة تسعد خريجك',
+    image: '/images/cat-graduation.jpg',
+    tag: 'هدايا التخرج'
   }
 ];
