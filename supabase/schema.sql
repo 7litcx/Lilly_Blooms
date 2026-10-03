@@ -221,4 +221,26 @@ SET password = EXCLUDED.password,
     role = 'admin',
     name = COALESCE(NULLIF(public.users.name, ''), 'مدير المتجر');
 
+-- ==============================================================================
+-- 14. Slider Slides Table (Main Hero Banner Slides)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.slider_slides (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    image TEXT NOT NULL,
+    title TEXT DEFAULT '',
+    subtitle TEXT DEFAULT '',
+    link TEXT DEFAULT '#bouquets',
+    is_active BOOLEAN DEFAULT true,
+    "order" INTEGER DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.slider_slides ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read slider_slides" ON public.slider_slides;
+CREATE POLICY "Public read slider_slides" ON public.slider_slides FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Full access slider_slides" ON public.slider_slides;
+CREATE POLICY "Full access slider_slides" ON public.slider_slides FOR ALL USING (true) WITH CHECK (true);
+
+
 

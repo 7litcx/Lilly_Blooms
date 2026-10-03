@@ -42,7 +42,8 @@ import {
   updateSliderSlide,
   deleteSliderSlide,
   toggleSliderSlide,
-  uploadSliderImage
+  uploadSliderImage,
+  compressImageFile
 } from '../lib/supabase';
 import { PRODUCTS as DEFAULT_CATALOG } from '../data/products';
 
@@ -380,16 +381,22 @@ export default function AdminDashboard({
     setIsSlideModalOpen(true);
   };
 
-  const handleSlideImageChange = (e) => {
+  const handleSlideImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setSlideFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setSlidePreview(reader.result);
-        setSlideForm(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file, 1600, 900, 0.82);
+        setSlidePreview(compressed);
+        setSlideForm(prev => ({ ...prev, image: compressed }));
+      } catch {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setSlidePreview(reader.result);
+          setSlideForm(prev => ({ ...prev, image: reader.result }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 

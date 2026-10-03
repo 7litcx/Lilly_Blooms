@@ -113,7 +113,11 @@ const getLocalData = (key, defaultData) => {
 
 const setLocalData = (key, data) => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.warn(`Failed to set localStorage for key "${key}":`, err);
+  }
 };
 
 // ==============================================================================
@@ -257,19 +261,78 @@ export const deleteProduct = async (id) => {
   return true;
 };
 
+export const compressImageFile = async (file, maxWidth = 1600, maxHeight = 900, quality = 0.82) => {
+  if (!file) return null;
+  if (typeof file === 'string' && !file.startsWith('data:image')) {
+    return file; // Already a URL
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      const processImage = () => {
+        let width = img.width;
+        let height = img.height;
+        if (!width || !height) {
+          resolve(typeof file === 'string' ? file : '/images/pink-lily-hero.jpg');
+          return;
+        }
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+
+      if (typeof file === 'string') {
+        img.onload = processImage;
+        img.onerror = () => resolve(file);
+        img.src = file;
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.onload = processImage;
+          img.onerror = () => resolve(e.target.result);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve('/images/pink-lily-hero.jpg');
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      resolve('/images/pink-lily-hero.jpg');
+    }
+  });
+};
+
 export const uploadProductImage = async (file) => {
   if (!file) return null;
   if (typeof file === 'string') return file;
 
-  if (isSupabaseConfigured() && file instanceof File) {
+  // Compress image first to keep payload lightweight
+  const compressedDataUrl = await compressImageFile(file, 1600, 900, 0.82);
+
+  if (isSupabaseConfigured()) {
     try {
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const res = await fetch(compressedDataUrl);
+      const blob = await res.blob();
+      const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.jpg`;
       const filePath = `items/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+        .upload(filePath, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
 
       if (!uploadError && uploadData) {
         const { data } = supabase.storage.from('products').getPublicUrl(filePath);
@@ -284,17 +347,8 @@ export const uploadProductImage = async (file) => {
     }
   }
 
-  // Fallback: Convert to Base64 Data URL for local persistence
-  return new Promise((resolve) => {
-    try {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => resolve('/images/pink-lily-hero.jpg');
-      reader.readAsDataURL(file);
-    } catch {
-      resolve('/images/pink-lily-hero.jpg');
-    }
-  });
+  // Fallback: Return lightweight compressed Base64 Data URL (fits safely in localStorage)
+  return compressedDataUrl;
 };
 
 // ==============================================================================
@@ -593,6 +647,9 @@ export const DEFAULT_SLIDER_SLIDES = [
 ];
 
 export const getSliderSlides = async () => {
+  // 1. Check local storage first for instant response
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, null);
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -601,7 +658,7 @@ export const getSliderSlides = async () => {
         .order('order', { ascending: true });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        return data.map(item => ({
+        const mapped = data.map(item => ({
           id: item.id,
           image: item.image,
           title: item.title || '',
@@ -611,14 +668,23 @@ export const getSliderSlides = async () => {
           order: item.order || 1,
           createdAt: item.created_at
         }));
+        // Synchronize local cache with database
+        setLocalData(LOCAL_STORAGE_KEYS.SLIDES, mapped);
+        return mapped;
       }
     } catch (err) {
       console.warn('Supabase fetch slides error, fallback to local store:', err);
     }
   }
 
-  // Fallback to local storage
-  return getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  // 2. Return local storage if present
+  if (localSlides && Array.isArray(localSlides) && localSlides.length > 0) {
+    return localSlides;
+  }
+
+  // 3. Fallback to initial defaults and persist them
+  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  return DEFAULT_SLIDER_SLIDES;
 };
 
 export const addSliderSlide = async (slideData) => {
@@ -627,20 +693,34 @@ export const addSliderSlide = async (slideData) => {
   }
 
   const newSlide = {
+    id: `slide-${Date.now()}`,
     image: slideData.image,
     title: (slideData.title || '').trim(),
     subtitle: (slideData.subtitle || '').trim(),
     link: (slideData.link || '').trim(),
-    is_active: slideData.isActive !== false,
+    isActive: slideData.isActive !== false,
     order: Number(slideData.order) || 1,
-    created_at: new Date().toISOString()
+    createdAt: new Date().toISOString()
   };
+
+  // Always update local storage first so user changes are NEVER lost
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  localSlides.push(newSlide);
+  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
 
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
         .from('slider_slides')
-        .insert([newSlide])
+        .insert([{
+          id: newSlide.id,
+          image: newSlide.image,
+          title: newSlide.title,
+          subtitle: newSlide.subtitle,
+          link: newSlide.link,
+          is_active: newSlide.isActive,
+          order: newSlide.order
+        }])
         .select()
         .single();
 
@@ -655,9 +735,6 @@ export const addSliderSlide = async (slideData) => {
           order: data.order || 1,
           createdAt: data.created_at
         };
-        // sync local
-        const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
-        setLocalData(LOCAL_STORAGE_KEYS.SLIDES, [created, ...localSlides]);
         return created;
       }
     } catch (err) {
@@ -665,21 +742,7 @@ export const addSliderSlide = async (slideData) => {
     }
   }
 
-  // Local Storage
-  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
-  const createdLocal = {
-    id: `slide-${Date.now()}`,
-    image: newSlide.image,
-    title: newSlide.title,
-    subtitle: newSlide.subtitle,
-    link: newSlide.link,
-    isActive: newSlide.is_active,
-    order: newSlide.order,
-    createdAt: newSlide.created_at
-  };
-  localSlides.push(createdLocal);
-  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
-  return createdLocal;
+  return newSlide;
 };
 
 export const updateSliderSlide = async (id, slideData) => {
@@ -692,6 +755,20 @@ export const updateSliderSlide = async (id, slideData) => {
     ...(slideData.order !== undefined && { order: Number(slideData.order) })
   };
 
+  // Always update local storage first so user changes are NEVER lost
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  const index = localSlides.findIndex(s => s.id === id);
+  let updatedItem = null;
+  if (index !== -1) {
+    localSlides[index] = {
+      ...localSlides[index],
+      ...slideData,
+      isActive: slideData.isActive !== undefined ? slideData.isActive : localSlides[index].isActive
+    };
+    setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
+    updatedItem = localSlides[index];
+  }
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -702,7 +779,7 @@ export const updateSliderSlide = async (id, slideData) => {
         .single();
 
       if (!error && data) {
-        const updated = {
+        return {
           id: data.id,
           image: data.image,
           title: data.title || '',
@@ -712,34 +789,22 @@ export const updateSliderSlide = async (id, slideData) => {
           order: data.order || 1,
           createdAt: data.created_at
         };
-        // sync local
-        const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
-        const idx = localSlides.findIndex(s => s.id === id);
-        if (idx !== -1) localSlides[idx] = updated;
-        setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
-        return updated;
       }
     } catch (err) {
       console.warn('Supabase update slide error:', err);
     }
   }
 
-  // Local storage
-  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
-  const index = localSlides.findIndex(s => s.id === id);
-  if (index !== -1) {
-    localSlides[index] = {
-      ...localSlides[index],
-      ...slideData,
-      isActive: slideData.isActive !== undefined ? slideData.isActive : localSlides[index].isActive
-    };
-    setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
-    return localSlides[index];
-  }
+  if (updatedItem) return updatedItem;
   throw new Error('شريحة البنر غير موجودة');
 };
 
 export const deleteSliderSlide = async (id) => {
+  // Always update local storage first
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  const filtered = localSlides.filter(s => s.id !== id);
+  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, filtered);
+
   if (isSupabaseConfigured()) {
     try {
       await supabase.from('slider_slides').delete().eq('id', id);
@@ -748,9 +813,6 @@ export const deleteSliderSlide = async (id) => {
     }
   }
 
-  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
-  const filtered = localSlides.filter(s => s.id !== id);
-  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, filtered);
   return true;
 };
 
@@ -759,7 +821,36 @@ export const toggleSliderSlide = async (id, currentStatus) => {
 };
 
 export const uploadSliderImage = async (file) => {
-  return uploadProductImage(file);
+  if (!file) return null;
+  if (typeof file === 'string') return file;
+
+  // Compress image to fit 1600x900 and stay under 150KB
+  const compressedDataUrl = await compressImageFile(file, 1600, 900, 0.82);
+
+  if (isSupabaseConfigured()) {
+    try {
+      const res = await fetch(compressedDataUrl);
+      const blob = await res.blob();
+      const fileName = `slide-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+      const filePath = `items/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(filePath, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
+
+      if (!uploadError && uploadData) {
+        const { data } = supabase.storage.from('products').getPublicUrl(filePath);
+        if (data?.publicUrl) {
+          return data.publicUrl;
+        }
+      }
+    } catch (err) {
+      console.warn('Storage upload error for slider:', err);
+    }
+  }
+
+  // Fallback: Return compressed Base64 Data URL
+  return compressedDataUrl;
 };
 
 // ==============================================================================

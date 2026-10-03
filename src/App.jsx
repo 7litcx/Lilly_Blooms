@@ -16,7 +16,7 @@ import AuthModal from './components/AuthModal';
 import WishlistModal from './components/WishlistModal';
 import AdminDashboard from './components/AdminDashboard';
 
-import { getProducts, getSliderSlides } from './lib/supabase';
+import { getProducts, getSliderSlides, DEFAULT_SLIDER_SLIDES } from './lib/supabase';
 
 export default function App() {
   // Cart state - initialized completely empty (no dummy items)
@@ -25,8 +25,21 @@ export default function App() {
   // Live products loaded directly from the database
   const [products, setProducts] = useState([]);
 
-  // Live slider banners loaded from database / local store
-  const [sliderSlides, setSliderSlides] = useState([]);
+  // Live slider banners loaded synchronously from local store / database
+  const [sliderSlides, setSliderSlides] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lilly_db_slider_slides');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (err) {}
+    }
+    return DEFAULT_SLIDER_SLIDES;
+  });
 
   // Wishlist state
   const [wishlistIds, setWishlistIds] = useState([]);
