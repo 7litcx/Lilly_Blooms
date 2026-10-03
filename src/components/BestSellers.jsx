@@ -26,26 +26,37 @@ export default function BestSellers({
     <section id="bouquets" className="py-12 md:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-[#F3E3E6]">
-        <div className="flex items-center gap-3">
-          <SectionSprig className="w-6 h-6 text-[#C97A8B]" />
-          <h2 className="font-serif text-3xl sm:text-4xl text-[#361F25] font-normal tracking-tight">
-            الأكثر مبيعاً
-          </h2>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 pb-4 border-b border-[#F3E3E6] gap-4">
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div className="flex items-center gap-3">
+            <SectionSprig className="w-6 h-6 text-[#C97A8B]" />
+            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-[#361F25] font-normal tracking-tight">
+              الأكثر مبيعاً
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setFilter('الكل')}
+            className="sm:hidden group inline-flex items-center gap-1 text-xs font-normal text-[#6B5258] hover:text-[#C97A8B] transition-colors"
+          >
+            <span>عرض الكل</span>
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
         </div>
 
-        <div className="mt-3 sm:mt-0 flex items-center gap-6">
-          {/* Quick filter pills */}
-          <div className="hidden md:flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto overflow-hidden">
+          {/* Quick filter pills - Visible & horizontally scrollable on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
             {['الكل', 'باقات', 'رومانسية', 'أعياد الميلاد', 'هدايا تخرج'].map((cat) => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setFilter(cat)}
-                className={`text-xs px-3 py-1 rounded-full transition-all ${
+                className={`text-xs px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   filter === cat
                     ? 'bg-[#C97A8B] text-white font-medium shadow-xs'
-                    : 'text-[#6B5258] hover:text-[#C97A8B] hover:bg-rose-50'
+                    : 'bg-[#FAF5F7] sm:bg-transparent text-[#6B5258] hover:text-[#C97A8B] hover:bg-rose-50 border border-[#F0E0E4] sm:border-transparent'
                 }`}
               >
                 {cat}
@@ -56,7 +67,7 @@ export default function BestSellers({
           <button
             type="button"
             onClick={() => setFilter('الكل')}
-            className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-normal text-[#6B5258] hover:text-[#C97A8B] transition-colors"
+            className="hidden sm:inline-flex group items-center gap-1.5 text-xs sm:text-sm font-normal text-[#6B5258] hover:text-[#C97A8B] transition-colors whitespace-nowrap shrink-0"
           >
             <span>عرض الكل</span>
             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
