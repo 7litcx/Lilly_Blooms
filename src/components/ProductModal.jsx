@@ -27,6 +27,7 @@ export default function ProductModal({
 }) {
   const [quantity, setQuantity] = useState(1);
   const [flowerCount, setFlowerCount] = useState(10);
+  const [flowerSize, setFlowerSize] = useState('medium'); // 'medium' (3000 YER) or 'large' (5000 YER)
   const [includeGiftCard, setIncludeGiftCard] = useState(false);
   const [customGiftMessage, setCustomGiftMessage] = useState('');
 
@@ -56,6 +57,7 @@ export default function ProductModal({
         });
       setQuantity(1);
       setFlowerCount(10);
+      setFlowerSize('medium');
       setIncludeGiftCard(false);
       setCustomGiftMessage('');
       setShowAddReview(false);
@@ -65,10 +67,10 @@ export default function ProductModal({
 
   if (!isOpen || !product) return null;
 
-  // Calculation for Yemeni Rial based on flower count (base reference: 10 flowers)
-  const baseReferenceCount = 10;
-  const singleFlowerPrice = Math.max(1, Math.round(product.price / baseReferenceCount));
-  const unitBasePrice = singleFlowerPrice * flowerCount;
+  // Calculation for Yemeni Rial based on flower count and flower size
+  // وسط = 3000 ريال يمني للوردة | كبير = 5000 ريال يمني للوردة
+  const flowerSizePrice = flowerSize === 'large' ? 5000 : 3000;
+  const unitBasePrice = flowerSizePrice * flowerCount;
   const totalPrice = unitBasePrice * quantity;
 
   // Average rating calculation
@@ -85,7 +87,9 @@ export default function ProductModal({
   }));
 
   const handleAdd = () => {
+    const sizeLabel = flowerSize === 'large' ? 'حجم كبير' : 'حجم وسط';
     const extraTags = [];
+    extraTags.push(sizeLabel);
     extraTags.push(`${flowerCount} حبة ورد`);
     if (includeGiftCard && customGiftMessage) {
       extraTags.push(`كرت: "${customGiftMessage}"`);
@@ -97,6 +101,8 @@ export default function ProductModal({
       ...product,
       price: unitBasePrice,
       flowerCount: flowerCount,
+      flowerSize: flowerSize === 'large' ? 'كبير' : 'وسط',
+      flowerSizePrice: flowerSizePrice,
       name: finalName
     }, quantity);
 
@@ -272,17 +278,17 @@ export default function ProductModal({
                   </h3>
 
                   {/* Price in Yemeni Rial */}
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-2xl sm:text-3xl font-bold text-[#C97A8B]">
-                      {Number(totalPrice).toLocaleString()} <span className="text-base font-normal text-[#361F25]">ر.ي</span>
-                    </span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-[#A08B90] line-through mr-1">
-                        {Number((product.originalPrice / baseReferenceCount) * flowerCount * quantity).toLocaleString()} ر.ي
+                  <div className="flex flex-col gap-1 mb-4">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-2xl sm:text-3xl font-bold text-[#C97A8B]">
+                        {Number(totalPrice).toLocaleString()} <span className="text-base font-normal text-[#361F25]">ر.ي</span>
                       </span>
-                    )}
-                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-                      متوفر للطلب الفوري 🟢
+                      <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
+                        متوفر للطلب الفوري 🟢
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[#7A646A]">
+                      ({flowerCount} حبة ورد × {Number(flowerSizePrice).toLocaleString()} ر.ي - حجم {flowerSize === 'large' ? 'كبير' : 'وسط'})
                     </span>
                   </div>
 
@@ -302,6 +308,69 @@ export default function ProductModal({
                       ))}
                     </div>
                   )}
+
+                  {/* Flower Size Option (حجم الوردة: وسط / كبير) */}
+                  <div className="mb-4 p-4 rounded-2xl bg-[#FAF5F7] border border-[#EFE0E4]">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-bold text-[#381F26] flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#C97A8B]" />
+                        <span>اختر حجم الوردة:</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-[#C97A8B] bg-white px-2.5 py-0.5 rounded-full border border-rose-200">
+                        {flowerSize === 'large' ? 'حجم كبير (5,000 ر.ي)' : 'حجم وسط (3,000 ر.ي)'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Option 1: وسط */}
+                      <button
+                        type="button"
+                        onClick={() => setFlowerSize('medium')}
+                        className={`relative p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer ${
+                          flowerSize === 'medium'
+                            ? 'bg-white border-[#C97A8B] shadow-sm ring-2 ring-[#C97A8B]/30'
+                            : 'bg-white/70 border-[#E5CED4] hover:border-[#C97A8B]/60'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-xs sm:text-sm text-[#381F26] flex items-center gap-1.5">
+                            <span>حجم وسط</span>
+                            {flowerSize === 'medium' && (
+                              <span className="w-2 h-2 rounded-full bg-[#C97A8B]" />
+                            )}
+                          </div>
+                          <p className="text-xs text-[#C97A8B] font-bold mt-1">
+                            3,000 <span className="text-[11px] text-[#7A646A] font-normal">ر.ي / وردة</span>
+                          </p>
+                        </div>
+                        <span className="text-2xl select-none">🌸</span>
+                      </button>
+
+                      {/* Option 2: كبير */}
+                      <button
+                        type="button"
+                        onClick={() => setFlowerSize('large')}
+                        className={`relative p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer ${
+                          flowerSize === 'large'
+                            ? 'bg-white border-[#C97A8B] shadow-sm ring-2 ring-[#C97A8B]/30'
+                            : 'bg-white/70 border-[#E5CED4] hover:border-[#C97A8B]/60'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-xs sm:text-sm text-[#381F26] flex items-center gap-1.5">
+                            <span>حجم كبير</span>
+                            {flowerSize === 'large' && (
+                              <span className="w-2 h-2 rounded-full bg-[#C97A8B]" />
+                            )}
+                          </div>
+                          <p className="text-xs text-[#C97A8B] font-bold mt-1">
+                            5,000 <span className="text-[11px] text-[#7A646A] font-normal">ر.ي / وردة</span>
+                          </p>
+                        </div>
+                        <span className="text-2xl select-none">🌺</span>
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Flower Count Option (عدد حبات الورد) */}
                   <div className="mb-5 p-4 rounded-2xl bg-[#FAF5F7] border border-[#EFE0E4]">

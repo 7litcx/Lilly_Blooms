@@ -139,7 +139,8 @@ export default function CartDrawer({
           price: item.price,
           quantity: item.quantity,
           image: item.image,
-          flowerCount: item.flowerCount || null
+          flowerCount: item.flowerCount || null,
+          flowerSize: item.flowerSize || null
         })),
         subtotal: subtotal,
         discount: discount,
