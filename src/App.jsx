@@ -16,7 +16,7 @@ import AuthModal from './components/AuthModal';
 import WishlistModal from './components/WishlistModal';
 import AdminDashboard from './components/AdminDashboard';
 
-import { getProducts } from './lib/supabase';
+import { getProducts, getSliderSlides } from './lib/supabase';
 
 export default function App() {
   // Cart state - initialized completely empty (no dummy items)
@@ -24,6 +24,9 @@ export default function App() {
 
   // Live products loaded directly from the database
   const [products, setProducts] = useState([]);
+
+  // Live slider banners loaded from database / local store
+  const [sliderSlides, setSliderSlides] = useState([]);
 
   // Wishlist state
   const [wishlistIds, setWishlistIds] = useState([]);
@@ -79,8 +82,19 @@ export default function App() {
     }
   };
 
+  const fetchLiveSlides = async () => {
+    try {
+      const data = await getSliderSlides();
+      setSliderSlides(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to fetch slider slides:', err);
+      setSliderSlides([]);
+    }
+  };
+
   useEffect(() => {
     fetchLiveProducts();
+    fetchLiveSlides();
   }, []);
 
   const showToast = (message) => {
@@ -181,17 +195,11 @@ export default function App() {
 
       {/* Main Content Sections */}
       <main className="flex-1">
-        {/* 3. Hero Section with user's pink lily bouquet */}
+        {/* 3. Hero Banner Slider */}
         <HeroSection
-          products={products}
+          slides={sliderSlides}
           onShopBouquets={handleShopBouquets}
           onExploreGifts={handleExploreGifts}
-          onQuickViewHero={(slideOrProduct) => {
-            const prod = slideOrProduct?.product || slideOrProduct;
-            if (prod && prod.name) {
-              setModalProduct(prod);
-            }
-          }}
         />
 
         {/* 4. Highlight Category Cards */}
@@ -282,6 +290,7 @@ export default function App() {
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
         onProductsUpdated={fetchLiveProducts}
+        onSlidesUpdated={fetchLiveSlides}
         isAdmin={isAdmin}
         onAdminLogin={handleAdminLogin}
         onLogoutAdmin={handleAdminLogout}

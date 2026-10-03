@@ -20,7 +20,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Lock,
-  LogOut
+  LogOut,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import {
   getProducts,
@@ -34,7 +36,13 @@ import {
   getPromoCodes,
   addPromoCode,
   togglePromoCodeStatus,
-  deletePromoCode
+  deletePromoCode,
+  getSliderSlides,
+  addSliderSlide,
+  updateSliderSlide,
+  deleteSliderSlide,
+  toggleSliderSlide,
+  uploadSliderImage
 } from '../lib/supabase';
 import { PRODUCTS as DEFAULT_CATALOG } from '../data/products';
 
@@ -42,6 +50,7 @@ export default function AdminDashboard({
   isOpen,
   onClose,
   onProductsUpdated,
+  onSlidesUpdated,
   isAdmin = false,
   onAdminLogin,
   onLogoutAdmin
@@ -56,6 +65,22 @@ export default function AdminDashboard({
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [promoCodes, setPromoCodes] = useState([]);
+  const [slides, setSlides] = useState([]);
+
+  // Slider Modal (Add/Edit)
+  const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
+  const [editingSlide, setEditingSlide] = useState(null);
+  const [slideForm, setSlideForm] = useState({
+    image: '',
+    title: '',
+    subtitle: '',
+    link: '#bouquets',
+    isActive: true,
+    order: 1
+  });
+  const [slideFile, setSlideFile] = useState(null);
+  const [slidePreview, setSlidePreview] = useState('');
+  const [slideSaving, setSlideSaving] = useState(false);
 
   // Product Modal (Add/Edit)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -87,14 +112,16 @@ export default function AdminDashboard({
   const loadData = async () => {
     setLoading(true);
     try {
-      const [prods, ords, promos] = await Promise.all([
+      const [prods, ords, promos, slds] = await Promise.all([
         getProducts(),
         getOrders(),
-        getPromoCodes()
+        getPromoCodes(),
+        getSliderSlides()
       ]);
       setProducts(prods || []);
       setOrders(ords || []);
       setPromoCodes(promos || []);
+      setSlides(slds || []);
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     } finally {
@@ -321,6 +348,122 @@ export default function AdminDashboard({
   };
 
   // --------------------------------------------------------------------------
+  // SLIDER BANNERS LOGIC
+  // --------------------------------------------------------------------------
+  const openAddSlideModal = () => {
+    setEditingSlide(null);
+    setSlideForm({
+      image: '',
+      title: '',
+      subtitle: '',
+      link: '#bouquets',
+      isActive: true,
+      order: slides.length + 1
+    });
+    setSlideFile(null);
+    setSlidePreview('');
+    setIsSlideModalOpen(true);
+  };
+
+  const openEditSlideModal = (slide) => {
+    setEditingSlide(slide);
+    setSlideForm({
+      image: slide.image || '',
+      title: slide.title || '',
+      subtitle: slide.subtitle || '',
+      link: slide.link || '',
+      isActive: slide.isActive !== false,
+      order: slide.order || 1
+    });
+    setSlideFile(null);
+    setSlidePreview(slide.image || '');
+    setIsSlideModalOpen(true);
+  };
+
+  const handleSlideImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSlideFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSlidePreview(reader.result);
+        setSlideForm(prev => ({ ...prev, image: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveSlide = async (e) => {
+    e.preventDefault();
+    if (!slidePreview && !slideForm.image) {
+      notify('يرجى اختيار صورة للبنر أو وضع رابط الصورة', true);
+      return;
+    }
+
+    try {
+      setSlideSaving(true);
+      let finalImageUrl = slideForm.image;
+      if (slideFile) {
+        finalImageUrl = await uploadSliderImage(slideFile);
+      }
+
+      const payload = {
+        image: finalImageUrl || slidePreview,
+        title: slideForm.title,
+        subtitle: slideForm.subtitle,
+        link: slideForm.link,
+        isActive: slideForm.isActive,
+        order: Number(slideForm.order) || 1
+      };
+
+      if (editingSlide) {
+        await updateSliderSlide(editingSlide.id, payload);
+        notify('تم تحديث بنر السلايدر بنجاح! 🌸');
+      } else {
+        await addSliderSlide(payload);
+        notify('تمت إضافة بنر السلايدر بنجاح! 🌸');
+      }
+
+      setIsSlideModalOpen(false);
+      const updated = await getSliderSlides();
+      setSlides(updated);
+      onSlidesUpdated && onSlidesUpdated();
+    } catch (err) {
+      notify(`فشل حفظ البنر: ${err.message}`, true);
+    } finally {
+      setSlideSaving(false);
+    }
+  };
+
+  const handleDeleteSlide = async (id, title) => {
+    if (!window.confirm(`هل أنت متأكد من حذف البنر ${title ? `"${title}"` : ''}؟`)) return;
+    try {
+      setLoading(true);
+      await deleteSliderSlide(id);
+      notify('تم حذف بنر السلايدر');
+      const updated = await getSliderSlides();
+      setSlides(updated);
+      onSlidesUpdated && onSlidesUpdated();
+    } catch (err) {
+      notify(`فشل الحذف: ${err.message}`, true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleSlideStatus = async (slide) => {
+    try {
+      await toggleSliderSlide(slide.id, slide.isActive);
+      notify(`تم ${slide.isActive ? 'تعطيل' : 'تفعيل'} البنر بنجاح`);
+      const updated = await getSliderSlides();
+      setSlides(updated);
+      onSlidesUpdated && onSlidesUpdated();
+    } catch (err) {
+      notify(`فشل التحديث: ${err.message}`, true);
+    }
+  };
+
+  // --------------------------------------------------------------------------
   // CALCULATIONS FOR OVERVIEW / REPORTS
   // --------------------------------------------------------------------------
   const totalRevenue = orders.reduce((sum, o) => sum + (parseFloat(o.totalAmount) || 0), 0);
@@ -499,6 +642,7 @@ export default function AdminDashboard({
         <div className="bg-white border-b border-[#EEDCE1] px-6 flex items-center gap-2 sm:gap-4 overflow-x-auto scrollbar-none">
           {[
             { id: 'overview', label: 'التقارير والإحصائيات', icon: LayoutDashboard },
+            { id: 'slider', label: `بنرات السلايدر (${slides.length})`, icon: ImageIcon },
             { id: 'products', label: `المنتجات (${products.length})`, icon: Package },
             { id: 'orders', label: `الطلبات (${orders.length})`, icon: ShoppingBag },
             { id: 'promos', label: `أكواد الخصم (${promoCodes.length})`, icon: Tag },
@@ -671,6 +815,169 @@ export default function AdminDashboard({
                 </div>
 
               </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB: SLIDER BANNERS MANAGEMENT                                    */}
+          {/* ================================================================= */}
+          {activeTab === 'slider' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner Actions Bar */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#EDDAE0] shadow-xs">
+                <div>
+                  <h3 className="font-serif text-lg font-normal text-[#381F26] flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-[#C97A8B]" />
+                    <span>إدارة بنرات السلايدر الرئيسي</span>
+                  </h3>
+                  <p className="text-xs text-[#7A6369] mt-1">
+                    أضف صور السلايدر لعرض العروض والباقات الترويجية في أعلى واجهة المتجر كما في أرقى المتاجر الإلكترونية.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openAddSlideModal}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#C97A8B] hover:bg-[#B8697A] text-white text-xs sm:text-sm font-medium transition-colors shadow-sm shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة بنر جديد</span>
+                </button>
+              </div>
+
+              {/* Live Preview Box */}
+              {slides.length > 0 && (
+                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#EDDAE0] shadow-xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-[#7A6369] flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-[#C97A8B]" />
+                      <span>معاينة حية لشكل البنرات في المتجر:</span>
+                    </span>
+                    <span className="text-xs text-[#C97A8B] font-sans font-medium">
+                      {slides.filter(s => s.isActive !== false).length} بنرات مفعلة
+                    </span>
+                  </div>
+                  <div className="relative w-full h-40 sm:h-56 md:h-64 rounded-2xl overflow-hidden bg-rose-50 border border-rose-100 flex items-center justify-center group shadow-inner">
+                    {slides.filter(s => s.isActive !== false).length > 0 ? (
+                      <img
+                        src={slides.filter(s => s.isActive !== false)[0].image}
+                        alt="معاينة البنر"
+                        className="w-full h-full object-cover object-center"
+                      />
+                    ) : (
+                      <p className="text-xs text-rose-400">لا توجد بنرات مفعلة حالياً</p>
+                    )}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-black/25 backdrop-blur-xs">
+                      <span className="w-6 h-2 bg-white rounded-full shadow-xs"></span>
+                      <span className="w-2 h-2 bg-white/60 rounded-full"></span>
+                      <span className="w-2 h-2 bg-white/60 rounded-full"></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Slider Banners Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {slides.map((slide, index) => (
+                  <div
+                    key={slide.id || index}
+                    className="bg-white rounded-2xl border border-[#EDDAE0] overflow-hidden shadow-xs hover:shadow-sm transition-shadow flex flex-col justify-between"
+                  >
+                    {/* Image Preview */}
+                    <div className="relative w-full h-44 sm:h-52 bg-rose-50 overflow-hidden group">
+                      <img
+                        src={slide.image}
+                        alt={slide.title || 'بنر'}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute top-3 end-3 flex items-center gap-2">
+                        <span
+                          className={`text-[11px] px-2.5 py-1 rounded-full font-medium backdrop-blur-md shadow-xs ${
+                            slide.isActive !== false
+                              ? 'bg-emerald-600/90 text-white'
+                              : 'bg-gray-600/90 text-white'
+                          }`}
+                        >
+                          {slide.isActive !== false ? 'مفعل في المتجر' : 'معطل'}
+                        </span>
+                        <span className="text-[11px] px-2 py-1 rounded-full bg-black/40 text-white backdrop-blur-md font-sans">
+                          #{slide.order || index + 1}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Slide Information */}
+                    <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                      <div>
+                        <h4 className="font-serif text-base font-normal text-[#381F26] line-clamp-1">
+                          {slide.title || 'بدون عنوان (بنر صورة ترويجية)'}
+                        </h4>
+                        {slide.subtitle && (
+                          <p className="text-xs text-[#7A6369] mt-0.5 line-clamp-1">
+                            {slide.subtitle}
+                          </p>
+                        )}
+                        {slide.link && (
+                          <div className="flex items-center gap-1 text-[11px] text-[#C97A8B] mt-1.5 font-sans">
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{slide.link}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-3 border-t border-[#F0E0E4] flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSlideStatus(slide)}
+                          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors font-medium ${
+                            slide.isActive !== false
+                              ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                          }`}
+                        >
+                          {slide.isActive !== false ? 'تعطيل' : 'تفعيل'}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditSlideModal(slide)}
+                            className="p-1.5 text-[#5A4047] hover:text-[#C97A8B] hover:bg-rose-50 rounded-lg transition-colors"
+                            title="تعديل البنر"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSlide(slide.id, slide.title)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="حذف البنر"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+
+              {slides.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-[#EDDAE0]">
+                  <ImageIcon className="w-12 h-12 text-[#C97A8B]/40 mx-auto mb-3" />
+                  <p className="text-sm text-[#7A6369]">لا توجد بنرات في السلايدر حالياً</p>
+                  <button
+                    type="button"
+                    onClick={openAddSlideModal}
+                    className="mt-3 text-xs text-[#C97A8B] hover:underline font-medium"
+                  >
+                    اضغط هنا لإضافة أول بنر
+                  </button>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -1024,6 +1331,182 @@ export default function AdminDashboard({
         </div>
 
       </div>
+
+      {/* =================================================================== */}
+      {/* MODAL: ADD / EDIT SLIDER BANNER                                     */}
+      {/* =================================================================== */}
+      {isSlideModalOpen && (
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-[#EDDAE0] max-h-[90vh] flex flex-col overflow-hidden text-[#381F26]">
+            
+            <div className="p-5 border-b border-[#F0E0E4] flex items-center justify-between">
+              <h3 className="font-serif text-xl font-normal text-[#381F26]">
+                {editingSlide ? 'تعديل بنر السلايدر' : 'إضافة بنر جديد للسلايدر'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsSlideModalOpen(false)}
+                className="p-1 text-[#7A6369] hover:text-[#C97A8B] rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSlide} className="flex-1 overflow-y-auto p-6 space-y-4">
+              
+              {/* Image Upload / Preview */}
+              <div>
+                <label className="block text-xs font-medium text-[#5A4047] mb-2">
+                  صورة البنر <span className="text-red-500">*</span>
+                </label>
+                
+                {slidePreview ? (
+                  <div className="relative w-full h-44 rounded-2xl overflow-hidden border border-[#EDDAE0] mb-3 group">
+                    <img
+                      src={slidePreview}
+                      alt="معاينة"
+                      className="w-full h-full object-cover object-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSlidePreview('');
+                        setSlideFile(null);
+                        setSlideForm(prev => ({ ...prev, image: '' }));
+                      }}
+                      className="absolute top-2 end-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full backdrop-blur-xs transition-colors"
+                      title="إزالة الصورة"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-[#E9CAD1] hover:border-[#C97A8B] rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors bg-[#FDF9FA] hover:bg-rose-50/50 mb-3">
+                    <Upload className="w-7 h-7 text-[#C97A8B]" />
+                    <span className="text-xs font-medium text-[#5A4047]">اضغط لاختيار صورة بنر من جهازك</span>
+                    <span className="text-[11px] text-[#A68F95]">PNG, JPG, WEBP (يفضل أبعاد عريضة 16:9 أو 21:9)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSlideImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                <div>
+                  <span className="text-xs text-[#7A6369] mb-1 block">أو ضع رابط صورة مباشر:</span>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/banner.jpg"
+                    value={slideForm.image}
+                    onChange={(e) => {
+                      setSlideForm(prev => ({ ...prev, image: e.target.value }));
+                      if (!slideFile) setSlidePreview(e.target.value);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#EDDAE0] text-xs focus:outline-none focus:border-[#C97A8B] font-sans"
+                  />
+                </div>
+              </div>
+
+              {/* Title (Optional) */}
+              <div>
+                <label className="block text-xs font-medium text-[#5A4047] mb-1">
+                  عنوان البنر (اختياري)
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: خصم 20% على باقات الربيع"
+                  value={slideForm.title}
+                  onChange={(e) => setSlideForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#EDDAE0] text-xs focus:outline-none focus:border-[#C97A8B]"
+                />
+              </div>
+
+              {/* Subtitle (Optional) */}
+              <div>
+                <label className="block text-xs font-medium text-[#5A4047] mb-1">
+                  النص الفرعي (اختياري)
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: استخدم كود LILLY20 عند الدفع"
+                  value={slideForm.subtitle}
+                  onChange={(e) => setSlideForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#EDDAE0] text-xs focus:outline-none focus:border-[#C97A8B]"
+                />
+              </div>
+
+              {/* Action Link (Optional) */}
+              <div>
+                <label className="block text-xs font-medium text-[#5A4047] mb-1">
+                  الرابط الموجه عند النقر (اختياري)
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: #bouquets أو رابط خارجي"
+                  value={slideForm.link}
+                  onChange={(e) => setSlideForm(prev => ({ ...prev, link: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#EDDAE0] text-xs focus:outline-none focus:border-[#C97A8B] font-sans text-left"
+                  dir="ltr"
+                />
+                <span className="text-[11px] text-[#A68F95] mt-1 block">
+                  يمكنك كتابة #bouquets للانتقال لقسم الباقات مباشرة عند النقر.
+                </span>
+              </div>
+
+              {/* Order & Active */}
+              <div className="grid grid-cols-2 gap-4 items-center pt-2">
+                <div>
+                  <label className="block text-xs font-medium text-[#5A4047] mb-1">
+                    ترتيب العرض
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={slideForm.order}
+                    onChange={(e) => setSlideForm(prev => ({ ...prev, order: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#EDDAE0] text-xs focus:outline-none focus:border-[#C97A8B]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="slideActiveCheck"
+                    checked={slideForm.isActive}
+                    onChange={(e) => setSlideForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="w-4 h-4 text-[#C97A8B] rounded border-[#EDDAE0] focus:ring-[#C97A8B]"
+                  />
+                  <label htmlFor="slideActiveCheck" className="text-xs font-medium text-[#5A4047] cursor-pointer">
+                    تفعيل البنر في المتجر
+                  </label>
+                </div>
+              </div>
+
+              {/* Form Action Buttons */}
+              <div className="pt-4 border-t border-[#F0E0E4] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsSlideModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl border border-[#EDDAE0] text-xs font-medium text-[#5A4047] hover:bg-gray-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={slideSaving}
+                  className="px-6 py-2.5 rounded-xl bg-[#C97A8B] hover:bg-[#B8697A] text-white text-xs font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                >
+                  {slideSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{slideSaving ? 'جاري الحفظ...' : (editingSlide ? 'حفظ التعديلات' : 'إضافة البنر')}</span>
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* =================================================================== */}
       {/* MODAL: ADD / EDIT PRODUCT                                           */}

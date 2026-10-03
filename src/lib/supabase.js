@@ -93,7 +93,8 @@ export const updateSupabaseCredentials = async (url, key) => {
 const LOCAL_STORAGE_KEYS = {
   PRODUCTS: 'lilly_db_products',
   ORDERS: 'lilly_db_orders',
-  PROMO_CODES: 'lilly_db_promos'
+  PROMO_CODES: 'lilly_db_promos',
+  SLIDES: 'lilly_db_slider_slides'
 };
 
 const getLocalData = (key, defaultData) => {
@@ -553,6 +554,212 @@ export const validatePromoCode = async (code) => {
     return { valid: true, discountPercent: match.discountPercent, code: match.code };
   }
   return { valid: false, discountPercent: 0 };
+};
+
+// ==============================================================================
+// 3.5. SLIDER BANNERS API
+// ==============================================================================
+export const DEFAULT_SLIDER_SLIDES = [
+  {
+    id: 'slide-1',
+    image: '/images/pink-lily-hero.jpg',
+    title: 'ليلي بلومز | تشكيلة الزهور الفاخرة',
+    subtitle: 'أجمل باقات الزهور الطبيعية المنسقة بعناية لجميع المناسبات',
+    link: '#bouquets',
+    isActive: true,
+    order: 1,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'slide-2',
+    image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1920&q=80',
+    title: 'باقات ورد وهدايا استثنائية',
+    subtitle: 'تنسيق راقٍ وتغليف ياباني فاخر مع كرت إهداء خاص',
+    link: '#bouquets',
+    isActive: true,
+    order: 2,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'slide-3',
+    image: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&w=1920&q=80',
+    title: 'توصيل مجاني للطلبات الأكثر من 30,000 ر.ي',
+    subtitle: 'أبهج من تحب اليوم بتوصيل سريع إلى باب المنزل',
+    link: '#bouquets',
+    isActive: true,
+    order: 3,
+    createdAt: new Date().toISOString()
+  }
+];
+
+export const getSliderSlides = async () => {
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('slider_slides')
+        .select('*')
+        .order('order', { ascending: true });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map(item => ({
+          id: item.id,
+          image: item.image,
+          title: item.title || '',
+          subtitle: item.subtitle || '',
+          link: item.link || '',
+          isActive: item.is_active !== false,
+          order: item.order || 1,
+          createdAt: item.created_at
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase fetch slides error, fallback to local store:', err);
+    }
+  }
+
+  // Fallback to local storage
+  return getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+};
+
+export const addSliderSlide = async (slideData) => {
+  if (!slideData.image) {
+    throw new Error('يرجى اختيار أو رفع صورة للبنر');
+  }
+
+  const newSlide = {
+    image: slideData.image,
+    title: (slideData.title || '').trim(),
+    subtitle: (slideData.subtitle || '').trim(),
+    link: (slideData.link || '').trim(),
+    is_active: slideData.isActive !== false,
+    order: Number(slideData.order) || 1,
+    created_at: new Date().toISOString()
+  };
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('slider_slides')
+        .insert([newSlide])
+        .select()
+        .single();
+
+      if (!error && data) {
+        const created = {
+          id: data.id,
+          image: data.image,
+          title: data.title || '',
+          subtitle: data.subtitle || '',
+          link: data.link || '',
+          isActive: data.is_active !== false,
+          order: data.order || 1,
+          createdAt: data.created_at
+        };
+        // sync local
+        const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+        setLocalData(LOCAL_STORAGE_KEYS.SLIDES, [created, ...localSlides]);
+        return created;
+      }
+    } catch (err) {
+      console.warn('Supabase insert slide error, fallback to local store:', err);
+    }
+  }
+
+  // Local Storage
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  const createdLocal = {
+    id: `slide-${Date.now()}`,
+    image: newSlide.image,
+    title: newSlide.title,
+    subtitle: newSlide.subtitle,
+    link: newSlide.link,
+    isActive: newSlide.is_active,
+    order: newSlide.order,
+    createdAt: newSlide.created_at
+  };
+  localSlides.push(createdLocal);
+  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
+  return createdLocal;
+};
+
+export const updateSliderSlide = async (id, slideData) => {
+  const updates = {
+    ...(slideData.image !== undefined && { image: slideData.image }),
+    ...(slideData.title !== undefined && { title: slideData.title }),
+    ...(slideData.subtitle !== undefined && { subtitle: slideData.subtitle }),
+    ...(slideData.link !== undefined && { link: slideData.link }),
+    ...(slideData.isActive !== undefined && { is_active: slideData.isActive }),
+    ...(slideData.order !== undefined && { order: Number(slideData.order) })
+  };
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabase
+        .from('slider_slides')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const updated = {
+          id: data.id,
+          image: data.image,
+          title: data.title || '',
+          subtitle: data.subtitle || '',
+          link: data.link || '',
+          isActive: data.is_active !== false,
+          order: data.order || 1,
+          createdAt: data.created_at
+        };
+        // sync local
+        const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+        const idx = localSlides.findIndex(s => s.id === id);
+        if (idx !== -1) localSlides[idx] = updated;
+        setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Supabase update slide error:', err);
+    }
+  }
+
+  // Local storage
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  const index = localSlides.findIndex(s => s.id === id);
+  if (index !== -1) {
+    localSlides[index] = {
+      ...localSlides[index],
+      ...slideData,
+      isActive: slideData.isActive !== undefined ? slideData.isActive : localSlides[index].isActive
+    };
+    setLocalData(LOCAL_STORAGE_KEYS.SLIDES, localSlides);
+    return localSlides[index];
+  }
+  throw new Error('شريحة البنر غير موجودة');
+};
+
+export const deleteSliderSlide = async (id) => {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.from('slider_slides').delete().eq('id', id);
+    } catch (err) {
+      console.warn('Supabase delete slide error:', err);
+    }
+  }
+
+  const localSlides = getLocalData(LOCAL_STORAGE_KEYS.SLIDES, DEFAULT_SLIDER_SLIDES);
+  const filtered = localSlides.filter(s => s.id !== id);
+  setLocalData(LOCAL_STORAGE_KEYS.SLIDES, filtered);
+  return true;
+};
+
+export const toggleSliderSlide = async (id, currentStatus) => {
+  return updateSliderSlide(id, { isActive: !currentStatus });
+};
+
+export const uploadSliderImage = async (file) => {
+  return uploadProductImage(file);
 };
 
 // ==============================================================================
