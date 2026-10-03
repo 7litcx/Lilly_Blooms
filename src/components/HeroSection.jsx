@@ -45,11 +45,6 @@ export default function HeroSection({ products = [], onShopBouquets, onExploreGi
           {/* Left Column: Typography & CTAs */}
           <div className="relative z-10 lg:col-span-6 flex flex-col items-start pl-0 lg:pl-4">
             
-            {/* Tagline */}
-            <div className="inline-flex items-center gap-2 mb-4 text-xs md:text-sm tracking-[0.2em] font-medium text-[#B8697A]">
-              <span className="text-xs">✦</span>
-              <span>زهور وهدايا استثنائية</span>
-            </div>
 
             {/* Main Headline */}
             <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-light tracking-tight text-[#381F26] leading-[1.25] mb-6">
