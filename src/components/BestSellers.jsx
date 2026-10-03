@@ -136,17 +136,24 @@ export default function BestSellers({
                     {product.name}
                   </h3>
 
-                  {/* Star Rating */}
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <div className="flex text-[#DDA668]">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-current stroke-none" />
-                      ))}
+                  {/* Star Rating or Quality Badge */}
+                  {product.reviewsCount > 0 ? (
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <div className="flex text-[#DDA668]">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-3.5 h-3.5 fill-current stroke-none" />
+                        ))}
+                      </div>
+                      <span className="text-xs text-[#826E73] font-light">
+                        ({product.reviewsCount} تقييم)
+                      </span>
                     </div>
-                    <span className="text-xs text-[#826E73] font-light">
-                      ({product.reviewsCount} تقييم)
-                    </span>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mb-2.5 text-[11px] text-[#826E73]">
+                      <span className="text-[#C97A8B]">✦</span>
+                      <span>تنسيق زهور فاخر</span>
+                    </div>
+                  )}
 
                   {/* Price */}
                   <div className="mb-4">

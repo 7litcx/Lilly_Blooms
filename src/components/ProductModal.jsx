@@ -9,7 +9,6 @@ import {
   ThumbsUp,
   MessageSquare,
   Send,
-  MapPin,
   Gift,
   AlertCircle
 } from 'lucide-react';
@@ -38,7 +37,6 @@ export default function ProductModal({
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewerName, setReviewerName] = useState('');
-  const [reviewerCity, setReviewerCity] = useState('صنعاء');
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSubmittedToast, setReviewSubmittedToast] = useState(false);
@@ -135,7 +133,6 @@ export default function ProductModal({
       setSubmittingReview(true);
       const created = await addProductReview(product.id, {
         userName: reviewerName.trim(),
-        city: reviewerCity.trim(),
         rating: newRating,
         comment: reviewComment.trim()
       });
@@ -264,10 +261,19 @@ export default function ProductModal({
                     >
                       <div className="flex text-[#DDA668]">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3.5 h-3.5 fill-current stroke-none" />
+                          <Star
+                            key={i}
+                            className={`w-3.5 h-3.5 stroke-none ${
+                              totalReviewsCount > 0 && i < Math.round(Number(averageRating))
+                                ? 'fill-[#DDA668]'
+                                : 'fill-[#EADBE0]'
+                            }`}
+                          />
                         ))}
                       </div>
-                      <span className="font-bold text-[#381F26]">{averageRating}</span>
+                      <span className="font-bold text-[#381F26]">
+                        {totalReviewsCount > 0 ? averageRating : 'جديد'}
+                      </span>
                       <span>({reviews.length} تقييم)</span>
                     </button>
                   </div>
@@ -551,15 +557,26 @@ export default function ProductModal({
                 {/* Overall Score */}
                 <div className="md:col-span-4 text-center md:border-e md:border-[#F0E0E4] md:pe-6">
                   <span className="text-5xl font-bold font-serif text-[#381F26] block">
-                    {averageRating}
+                    {totalReviewsCount > 0 ? averageRating : '—'}
                   </span>
                   <div className="flex justify-center text-[#DDA668] my-2">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-current stroke-none" />
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 stroke-none ${
+                          totalReviewsCount > 0 && i < Math.round(Number(averageRating))
+                            ? 'fill-[#DDA668]'
+                            : 'fill-[#EADBE0]'
+                        }`}
+                      />
                     ))}
                   </div>
                   <p className="text-xs text-[#7A646A]">
-                    بناءً على <strong>{reviews.length}</strong> تقييم من عملاء ليلي بلومز
+                    {totalReviewsCount > 0 ? (
+                      <>بناءً على <strong>{reviews.length}</strong> تقييم من عملاء ليلي بلومز</>
+                    ) : (
+                      'لا توجد تقييمات مضافة حتى الآن'
+                    )}
                   </p>
                 </div>
 
@@ -633,46 +650,26 @@ export default function ProductModal({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-[#7A6369] mb-1">اسمك الكريم *</label>
-                      <input
-                        type="text"
-                        placeholder="مثال: ياسمين المقطري"
-                        value={reviewerName}
-                        onChange={(e) => {
-                          setReviewerName(e.target.value);
-                          if (reviewErrors.name) setReviewErrors((prev) => ({ ...prev, name: null }));
-                        }}
-                        className={`w-full text-xs p-3 rounded-xl border ${
-                          reviewErrors.name ? 'border-red-400 bg-red-50/20' : 'border-[#DFC3CB]'
-                        } focus:outline-none focus:ring-1 focus:ring-[#C97A8B]`}
-                      />
-                      {reviewErrors.name && (
-                        <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                          <AlertCircle className="w-3 h-3 shrink-0" />
-                          <span>{reviewErrors.name}</span>
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-[#7A6369] mb-1">المدينة / المنطقة</label>
-                      <select
-                        value={reviewerCity}
-                        onChange={(e) => setReviewerCity(e.target.value)}
-                        className="w-full text-xs p-3 rounded-xl border border-[#DFC3CB] focus:outline-none focus:ring-1 focus:ring-[#C97A8B] bg-white"
-                      >
-                        <option value="صنعاء">صنعاء</option>
-                        <option value="عدن">عدن</option>
-                        <option value="تعز">تعز</option>
-                        <option value="المكلا">المكلا</option>
-                        <option value="الحديدة">الحديدة</option>
-                        <option value="إب">إب</option>
-                        <option value="ذمار">ذمار</option>
-                        <option value="أخرى">أخرى</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#7A6369] mb-1">اسمك الكريم *</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: ياسمين المقطري"
+                      value={reviewerName}
+                      onChange={(e) => {
+                        setReviewerName(e.target.value);
+                        if (reviewErrors.name) setReviewErrors((prev) => ({ ...prev, name: null }));
+                      }}
+                      className={`w-full text-xs p-3 rounded-xl border ${
+                        reviewErrors.name ? 'border-red-400 bg-red-50/20' : 'border-[#DFC3CB]'
+                      } focus:outline-none focus:ring-1 focus:ring-[#C97A8B]`}
+                    />
+                    {reviewErrors.name && (
+                      <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{reviewErrors.name}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -759,12 +756,7 @@ export default function ProductModal({
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-[#866D73] mt-0.5">
-                              <span className="flex items-center gap-0.5">
-                                <MapPin className="w-3 h-3 text-[#C97A8B]" />
-                                {rev.city || 'اليمن'}
-                              </span>
-                              <span>•</span>
+                            <div className="text-[11px] text-[#866D73] mt-0.5">
                               <span>{rev.date || 'مؤخراً'}</span>
                             </div>
                           </div>

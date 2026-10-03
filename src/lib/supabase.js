@@ -765,87 +765,6 @@ export const uploadSliderImage = async (file) => {
 // ==============================================================================
 // 4. REVIEWS & RATINGS API
 // ==============================================================================
-const DEFAULT_REVIEWS = {
-  'pink-lily-dream': [
-    {
-      id: 'rev-1',
-      userName: 'ريم الصنعاني',
-      city: 'صنعاء',
-      rating: 5,
-      date: 'منذ يومين',
-      comment: 'الباقة فاقت توقعاتي بكثير! رائحة الورد والزنبق طبيعية وتغليف البليسيه الياباني فخم جداً وكرت الإهداء خطه متقن.',
-      isVerified: true,
-      likes: 14
-    },
-    {
-      id: 'rev-2',
-      userName: 'أصيل اليافعي',
-      city: 'عدن',
-      rating: 5,
-      date: 'منذ أسبوع',
-      comment: 'وصلت في وقتها تماماً بتغليف مبرد ممتاز، أهديتها للوالدة وأسعدتها جداً. شكراً ليلي بلومز على الذوق الرفيع.',
-      isVerified: true,
-      likes: 8
-    },
-    {
-      id: 'rev-3',
-      userName: 'سارة الأهدل',
-      city: 'الحديدة',
-      rating: 5,
-      date: 'منذ أسبوعين',
-      comment: 'أجمل وأرقى تنسيق زهور طلبته، الورود نضرة وبقيت نضرة أكثر من أسبوع مع اتباع نصائح العناية المرفقة.',
-      isVerified: true,
-      likes: 5
-    }
-  ],
-  'pure-elegance': [
-    {
-      id: 'rev-4',
-      userName: 'مها الشرجبي',
-      city: 'تعز',
-      rating: 5,
-      date: 'منذ 3 أيام',
-      comment: 'زهور الليلي البيضاء ساحرة وملكية، التنسيق فائق النعومة ومناسب جداً للمناسبات الخاصة.',
-      isVerified: true,
-      likes: 9
-    },
-    {
-      id: 'rev-5',
-      userName: 'طارق باوزير',
-      city: 'المكلا',
-      rating: 5,
-      date: 'منذ أسبوع',
-      comment: 'خدمة احترافية والتزام بالموعد، الباقة حقيقة أجمل من الصور بمراحل.',
-      isVerified: true,
-      likes: 4
-    }
-  ],
-  'blushing-romance': [
-    {
-      id: 'rev-6',
-      userName: 'نور الهمداني',
-      city: 'صنعاء',
-      rating: 5,
-      date: 'منذ 4 أيام',
-      comment: 'درجات الوردي مع الجبسوفيليا والأوكالبتوس تعطي هدوء وفخامة غير عادية، حبيت الاهتمام بأدق التفاصيل.',
-      isVerified: true,
-      likes: 11
-    }
-  ],
-  'sweet-serenity': [
-    {
-      id: 'rev-7',
-      userName: 'أروى العولقي',
-      city: 'عدن',
-      rating: 5,
-      date: 'منذ 5 أيام',
-      comment: 'ألوان الهيدرانجيا الليلكية مبهجة جداً والورود منتقاة بحب، تنسيق متكامل وفاخر.',
-      isVerified: true,
-      likes: 6
-    }
-  ]
-};
-
 export const getProductReviews = async (productId) => {
   if (isSupabaseConfigured()) {
     try {
@@ -855,11 +774,10 @@ export const getProductReviews = async (productId) => {
         .eq('product_id', productId)
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         return data.map(r => ({
           id: r.id,
           userName: r.user_name,
-          city: r.city || 'اليمن',
           rating: r.rating,
           comment: r.comment,
           isVerified: r.is_verified,
@@ -872,7 +790,7 @@ export const getProductReviews = async (productId) => {
     }
   }
 
-  // Local fallback
+  // Local fallback: only real reviews added by users
   const stored = typeof window !== 'undefined' ? localStorage.getItem(`lilly_reviews_${productId}`) : null;
   if (stored) {
     try {
@@ -880,26 +798,13 @@ export const getProductReviews = async (productId) => {
     } catch {}
   }
 
-  const defaults = DEFAULT_REVIEWS[productId] || [
-    {
-      id: `rev-gen-1`,
-      userName: 'عميل ليلي بلومز',
-      city: 'صنعاء',
-      rating: 5,
-      date: 'مؤخراً',
-      comment: 'تنسيق أنيق وزهور طبيعية فائقة النضارة، التوصيل كان سريعاً والتعامل راقي جداً.',
-      isVerified: true,
-      likes: 3
-    }
-  ];
-  return defaults;
+  return [];
 };
 
 export const addProductReview = async (productId, reviewData) => {
   const newReview = {
     product_id: productId,
     user_name: reviewData.userName || 'مشتري موثق',
-    city: reviewData.city || 'اليمن',
     rating: parseInt(reviewData.rating, 10) || 5,
     comment: reviewData.comment || '',
     is_verified: true,
@@ -918,7 +823,6 @@ export const addProductReview = async (productId, reviewData) => {
         return {
           id: data.id,
           userName: data.user_name,
-          city: data.city,
           rating: data.rating,
           comment: data.comment,
           isVerified: true,
@@ -936,7 +840,6 @@ export const addProductReview = async (productId, reviewData) => {
   const localItem = {
     id: `rev-${Date.now()}`,
     userName: newReview.user_name,
-    city: newReview.city,
     rating: newReview.rating,
     comment: newReview.comment,
     isVerified: true,
